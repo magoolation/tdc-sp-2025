@@ -3,39 +3,34 @@ using BankingSystem.Account.Api.Features.Accounts.Commands;
 using BankingSystem.Account.Api.Features.Accounts.Queries;
 using BankingSystem.Account.Api.Services;
 using MediatR;
-using Microsoft.AspNetCore.OutputCaching;
-using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AccountDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("AccountDb")));
+builder.AddServiceDefaults();
+
+builder.AddNpgsqlDbContext<AccountDbContext>("AccountDB");
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
 builder.Services.AddHttpClient<ITransactionApiClient, TransactionApiClient>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Services:TransactionApi"] ?? "http://localhost:5001/");
     client.Timeout = TimeSpan.FromSeconds(30);
-});
-
-var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnection));
-
-builder.Services.AddOutputCache(options =>
-{
-    options.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(5);
 })
-.AddStackExchangeRedisOutputCache(options =>
-{
-    options.Configuration = redisConnection;
-});
+.AddServiceDiscovery();
+
+builder.AddRedisOutputCache("cache");
+
+builder.AddRabbitMQClient("messaging");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Ensure database is created and migrations are applied
+await app.EnsureDatabaseAsync<AccountDbContext>();
+
+app.MapDefaultEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
@@ -109,10 +104,7 @@ app.MapGet("/api/accounts/{number}/transactions", async (
 .WithTags("Accounts")
 .CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(1)).Tag("transactions"));
 
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<AccountDbContext>();
-    await context.Database.EnsureCreatedAsync();
-}
+// Remover a inicialização manual do banco - deixar o Aspire gerenciar
+// O Aspire já cuida da criação e migração do banco automaticamente
 
 app.Run();

@@ -8,12 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.4.2" />
+    <PackageReference Include="Aspire.RabbitMQ.Client" Version="9.4.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.9" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
-    <PackageReference Include="RabbitMQ.Client" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BankingSystem.Shared\BankingSystem.Shared.csproj" />
+    <ProjectReference Include="..\BankingSystem.ServiceDefaults\BankingSystem.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

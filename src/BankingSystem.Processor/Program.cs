@@ -1,26 +1,20 @@
 using BankingSystem.Processor.Data;
 using BankingSystem.Processor.Services;
-using Microsoft.EntityFrameworkCore;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddDbContext<AccountDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("AccountDb")));
+builder.AddServiceDefaults();
 
-builder.Services.AddDbContext<TransactionDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("TransactionDb")));
+builder.AddNpgsqlDbContext<AccountDbContext>("AccountDB");
+builder.AddNpgsqlDbContext<TransactionDbContext>("TransactionDB");
+
+builder.AddRabbitMQClient("messaging");
 
 builder.Services.AddHostedService<TransactionProcessorService>();
 
 var host = builder.Build();
 
-using (var scope = host.Services.CreateScope())
-{
-    var accountContext = scope.ServiceProvider.GetRequiredService<AccountDbContext>();
-    var transactionContext = scope.ServiceProvider.GetRequiredService<TransactionDbContext>();
-
-    await accountContext.Database.EnsureCreatedAsync();
-    await transactionContext.Database.EnsureCreatedAsync();
-}
+// Remover a inicialização manual do banco - deixar o Aspire gerenciar
+// O Aspire já cuida da criação e migração do banco automaticamente
 
 await host.RunAsync();

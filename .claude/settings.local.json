@@ -6,7 +6,11 @@
       "Bash(dotnet add package:*)",
       "Bash(dotnet add reference:*)",
       "Bash(cat:*)",
-      "Bash(dotnet build)"
+      "Bash(dotnet build)",
+      "Bash(git commit:*)",
+      "Bash(dotnet add:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

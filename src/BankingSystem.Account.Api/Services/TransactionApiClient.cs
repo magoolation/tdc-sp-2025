@@ -3,15 +3,23 @@ using BankingSystem.Shared.DTOs;
 
 namespace BankingSystem.Account.Api.Services;
 
-public class TransactionApiClient(HttpClient httpClient) : ITransactionApiClient
+public class TransactionApiClient : ITransactionApiClient
 {
+    private readonly HttpClient _httpClient;
+
+    public TransactionApiClient(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+        _httpClient.BaseAddress = new Uri("http://transaction-api/");
+    }
+
     public async Task<List<TransactionDto>> GetTransactionsByPeriodAsync(
         string accountNumber,
         DateTime startDate,
         DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.GetAsync(
+        var response = await _httpClient.GetAsync(
             $"api/transactions/account/{accountNumber}?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}",
             cancellationToken);
 

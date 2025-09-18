@@ -1,38 +1,32 @@
-using BankingSystem.Shared.Enums;
 using BankingSystem.Transaction.Api.Data;
 using BankingSystem.Transaction.Api.Features.Transactions.Commands;
 using BankingSystem.Transaction.Api.Features.Transactions.Queries;
 using BankingSystem.Transaction.Api.Services;
 using MediatR;
-using Microsoft.AspNetCore.OutputCaching;
-using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<TransactionDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("TransactionDb")));
+builder.AddServiceDefaults();
+
+builder.AddNpgsqlDbContext<TransactionDbContext>("TransactionDB");
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
+builder.AddRabbitMQClient("messaging");
+
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
-var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnection));
-
-builder.Services.AddOutputCache(options =>
-{
-    options.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(5);
-})
-.AddStackExchangeRedisOutputCache(options =>
-{
-    options.Configuration = redisConnection;
-});
+builder.AddRedisOutputCache("cache");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Ensure database is created and migrations are applied
+await app.EnsureDatabaseAsync<TransactionDbContext>();
+
+app.MapDefaultEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
@@ -88,10 +82,7 @@ app.MapPut("/api/transactions/{id}/status", async (Guid id, UpdateTransactionSta
 .WithName("UpdateTransactionStatus")
 .WithTags("Transactions");
 
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<TransactionDbContext>();
-    await context.Database.EnsureCreatedAsync();
-}
+// Remover a inicialização manual do banco - deixar o Aspire gerenciar
+// O Aspire já cuida da criação e migração do banco automaticamente
 
 app.Run();

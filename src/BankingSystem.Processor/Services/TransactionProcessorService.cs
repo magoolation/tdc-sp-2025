@@ -16,20 +16,19 @@ public class TransactionProcessorService : BackgroundService
 {
     private readonly ILogger<TransactionProcessorService> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly IConfiguration _configuration;
-    private IConnection? _connection;
-    private IChannel? _channel;
+    private readonly IConnection _connection;
+    private IModel? _channel;
     private readonly string _exchangeName = "banking.events";
     private readonly string _queueName = "transaction.processor";
 
     public TransactionProcessorService(
         ILogger<TransactionProcessorService> logger,
         IServiceProvider serviceProvider,
-        IConfiguration configuration)
+        IConnection connection)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
-        _configuration = configuration;
+        _connection = connection;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -53,39 +52,31 @@ public class TransactionProcessorService : BackgroundService
 
     private async Task InitializeRabbitMq()
     {
-        var factory = new ConnectionFactory
-        {
-            HostName = _configuration["RabbitMQ:Host"] ?? "localhost",
-            Port = int.Parse(_configuration["RabbitMQ:Port"] ?? "5672"),
-            UserName = _configuration["RabbitMQ:Username"] ?? "admin",
-            Password = _configuration["RabbitMQ:Password"] ?? "admin"
-        };
+        _channel = _connection.CreateModel();
 
-        _connection = await factory.CreateConnectionAsync();
-        _channel = await _connection.CreateChannelAsync();
+        _channel.ExchangeDeclare(_exchangeName, ExchangeType.Direct, durable: true);
 
-        await _channel.ExchangeDeclareAsync(_exchangeName, ExchangeType.Direct, durable: true);
-
-        await _channel.QueueDeclareAsync(
+        _channel.QueueDeclare(
             queue: _queueName,
             durable: true,
             exclusive: false,
             autoDelete: false,
             arguments: null);
 
-        await _channel.QueueBindAsync(_queueName, _exchangeName, "transaction.created");
-        await _channel.QueueBindAsync(_queueName, _exchangeName, "transaction.cancelled");
+        _channel.QueueBind(_queueName, _exchangeName, "transaction.created");
+        _channel.QueueBind(_queueName, _exchangeName, "transaction.cancelled");
 
-        await _channel.BasicQosAsync(0, 1, false);
+        _channel.BasicQos(0, 1, false);
+        await Task.CompletedTask;
     }
 
     private async Task ProcessMessages(CancellationToken stoppingToken)
     {
         if (_channel == null) return;
 
-        var consumer = new AsyncEventingBasicConsumer(_channel);
+        var consumer = new EventingBasicConsumer(_channel);
 
-        consumer.ReceivedAsync += async (model, ea) =>
+        consumer.Received += async (model, ea) =>
         {
             try
             {
@@ -106,16 +97,16 @@ public class TransactionProcessorService : BackgroundService
                     await ProcessTransactionCancelled(message, scope.ServiceProvider);
                 }
 
-                await _channel!.BasicAckAsync(ea.DeliveryTag, false);
+                _channel!.BasicAck(ea.DeliveryTag, false);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing message");
-                await _channel!.BasicNackAsync(ea.DeliveryTag, false, true);
+                _channel!.BasicNack(ea.DeliveryTag, false, true);
             }
         };
 
-        await _channel!.BasicConsumeAsync(
+        _channel!.BasicConsume(
             queue: _queueName,
             autoAck: false,
             consumer: consumer);
@@ -231,14 +222,8 @@ public class TransactionProcessorService : BackgroundService
 
         if (_channel != null)
         {
-            await _channel.CloseAsync();
+            _channel.Close();
             _channel.Dispose();
-        }
-
-        if (_connection != null)
-        {
-            await _connection.CloseAsync();
-            _connection.Dispose();
         }
 
         await base.StopAsync(cancellationToken);
