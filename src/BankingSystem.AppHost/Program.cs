@@ -21,7 +21,8 @@ var accountApi = builder.AddProject<Projects.BankingSystem_Account_Api>("account
     .WithReference(messaging)
     .WaitFor(accountDb)
     .WaitFor(cache)
-    .WaitFor(messaging);
+    .WaitFor(messaging)
+    .WithEndpoint("swagger", endpoint => endpoint.Url = "/swagger/index.html");
 
 // Transaction API - aguarda banco, cache, messaging e account API
 var transactionApi = builder.AddProject<Projects.BankingSystem_Transaction_Api>("transaction-api")
@@ -32,7 +33,8 @@ var transactionApi = builder.AddProject<Projects.BankingSystem_Transaction_Api>(
     .WaitFor(transactionDb)
     .WaitFor(cache)
     .WaitFor(messaging)
-    .WaitFor(accountApi);
+    .WaitFor(accountApi)
+    .WithEndpoint("swagger", endpoint => endpoint.Url = "/swagger/index.html");
 
 // Processor Background Service - aguarda ambos os bancos, messaging e as duas APIs
 builder.AddProject<Projects.BankingSystem_Processor>("processor")
