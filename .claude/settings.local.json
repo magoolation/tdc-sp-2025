@@ -10,7 +10,10 @@
       "Bash(git commit:*)",
       "Bash(dotnet add:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "mcp__mslearn__microsoft_docs_search",
+      "mcp__mslearn__microsoft_docs_fetch",
+      "Bash(dotnet build:*)"
     ],
     "deny": [],
     "ask": []
