@@ -1,17 +1,17 @@
-# Banking System - Microservices com .NET 9
+# Banking System - Microservices com .NET 9 e Aspire
 
-Sistema de exemplo para demonstração no TDC São Paulo 2025, implementando microserviços bancários com .NET 9, CQRS, RabbitMQ e Redis.
+Sistema de exemplo para demonstração no TDC São Paulo 2025, implementando microserviços bancários com .NET 9, Aspire, CQRS, RabbitMQ e Redis.
 
 ## 🏗️ Arquitetura
 
-O sistema é composto por 3 microserviços:
+O sistema utiliza **.NET Aspire** para orquestração de microserviços e é composto por:
 
 ### 1. **Account API** (porta 5000)
 - Gerenciamento de contas bancárias
 - Operações: criar, editar, inativar e consultar contas
 - Consulta de saldo e transações
 - Cache com Redis usando OutputCache
-- Integração com Transaction API
+- Integração com Transaction API via Service Discovery
 
 ### 2. **Transaction API** (porta 5001)
 - Gerenciamento de transações
@@ -25,41 +25,50 @@ O sistema é composto por 3 microserviços:
 - Criação de transações de estorno
 - Consumidor RabbitMQ
 
+### 4. **AppHost** (Orquestrador Aspire)
+- Gerenciamento centralizado de todos os serviços
+- Service Discovery automático
+- Dashboard integrado para monitoramento
+- Configuração automática de dependências
+
 ## 🚀 Como Executar
 
 ### Pré-requisitos
 - .NET 9 SDK
-- Docker e Docker Compose
+- Docker Desktop
+- .NET Aspire workload
 
-### 1. Subir a infraestrutura
-
-```bash
-docker-compose up -d
-```
-
-Isso iniciará:
-- PostgreSQL (Account DB) - porta 5432
-- PostgreSQL (Transaction DB) - porta 5433
-- Redis - porta 6379
-- RabbitMQ - porta 5672 (Admin UI: 15672)
-
-### 2. Executar os microserviços
-
-Em terminais separados:
+### Instalar Aspire Workload
 
 ```bash
-# Terminal 1 - Account API
-cd src/BankingSystem.Account.Api
-dotnet run
+dotnet workload update
+dotnet workload install aspire
+```
 
-# Terminal 2 - Transaction API
-cd src/BankingSystem.Transaction.Api
-dotnet run
+### Executar com Aspire
 
-# Terminal 3 - Processor
-cd src/BankingSystem.Processor
+```bash
+# Na raiz do projeto
+cd src/BankingSystem.AppHost
 dotnet run
 ```
+
+Isso iniciará automaticamente:
+- **Aspire Dashboard** - http://localhost:15888
+- **Account API** - http://localhost:5000
+- **Transaction API** - http://localhost:5001
+- **Processor** (Worker Service)
+- **PostgreSQL** (2 instâncias)
+- **Redis**
+- **RabbitMQ** com Admin UI
+
+### Dashboard Aspire
+
+Acesse http://localhost:15888 para:
+- Visualizar todos os serviços em execução
+- Monitorar logs em tempo real
+- Acompanhar métricas e traces
+- Gerenciar recursos e dependências
 
 ## 📝 APIs Disponíveis
 
@@ -91,6 +100,7 @@ Admin UI: http://localhost:15672
 ## 🛠️ Tecnologias
 
 - **.NET 9 / C# 13**
+- **.NET Aspire** - Orquestração de microserviços
 - **MediatR** - Implementação CQRS
 - **Entity Framework Core** - ORM
 - **PostgreSQL** - Banco de dados
@@ -98,16 +108,18 @@ Admin UI: http://localhost:15672
 - **Redis** - Cache
 - **OutputCache** - Cache de respostas HTTP
 - **Minimal APIs** - Endpoints
+- **Service Discovery** - Descoberta automática de serviços
 
 ## 📂 Estrutura do Projeto
 
 ```
 ├── src/
+│   ├── BankingSystem.AppHost/           # Orquestrador Aspire
+│   ├── BankingSystem.ServiceDefaults/   # Configurações padrão Aspire
 │   ├── BankingSystem.Account.Api/       # API de Contas
 │   ├── BankingSystem.Transaction.Api/   # API de Transações
 │   ├── BankingSystem.Processor/         # Worker Service
 │   └── BankingSystem.Shared/            # Classes compartilhadas
-├── docker-compose.yml                   # Infraestrutura
 └── BankingSystem.sln                    # Solution
 ```
 
@@ -142,8 +154,12 @@ Admin UI: http://localhost:15672
 
 ## ⚙️ Configurações
 
-As configurações estão em `appsettings.Development.json` de cada projeto:
-- Connection strings para PostgreSQL
-- Configuração do Redis
-- Configuração do RabbitMQ
-- URLs das APIs
+Com Aspire, as configurações são gerenciadas automaticamente:
+- **Service Discovery** - URLs descobertas automaticamente
+- **Connection Strings** - Configuradas pelo AppHost
+- **Recursos** - PostgreSQL, Redis e RabbitMQ provisionados automaticamente
+- **Monitoramento** - Logs, traces e métricas centralizados
+
+Para configurações customizadas, verifique:
+- `appsettings.json` em cada projeto
+- `Program.cs` do AppHost para configuração de recursos
